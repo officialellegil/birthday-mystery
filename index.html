@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Something arrived for you… 🎀</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --rose:      #FF7EB3;
+      --rose-dk:   #E8609A;
+      --violet:    #9B8FFF;
+      --mint:      #6DDCAA;
+      --peach:     #FFAA77;
+      --sky:       #7EC8FF;
+      --ink:       #3A2860;
+      --ink-soft:  #7A68A8;
+      --bg-from:   #FFF0F8;
+      --bg-to:     #EDE8FF;
+      --card:      #FFFFFF;
+      --border:    rgba(155,143,255,.18);
+      --shadow:    rgba(58,40,96,.10);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{height:100%}
+    body{
+      font-family:'Nunito',sans-serif;
+      background:linear-gradient(150deg,var(--bg-from) 0%,var(--bg-to) 100%);
+      min-height:100%;display:flex;align-items:flex-start;justify-content:center;
+      overflow-x:hidden;
+    }
+    /* bubbles */
+    #bubbles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+    .bubble{position:absolute;border-radius:50%;opacity:.16;animation:rise linear infinite}
+    @keyframes rise{0%{transform:translateY(110vh) scale(.75)}100%{transform:translateY(-20vh) scale(1.15)}}
+    /* stage */
+    #stage{position:relative;z-index:1;width:100%;padding:24px 16px 52px;display:flex;align-items:flex-start;justify-content:center}
+    .scene{display:none;flex-direction:column;align-items:center;width:100%;max-width:420px;animation:slideUp .5s cubic-bezier(.22,.68,0,1.2) both}
+    .scene.active{display:flex}
+    @keyframes slideUp{from{opacity:0;transform:translateY(36px)}to{opacity:1;transform:translateY(0)}}
+    /* card */
+    .card{background:var(--card);border-radius:28px;border:1.5px solid var(--border);padding:30px 22px 26px;width:100%;box-shadow:0 14px 48px var(--shadow);text-align:center}
+    /* type */
+    .step-tag{display:inline-block;font-size:11px;font-weight:800;color:var(--violet);background:rgba(155,143,255,.12);border-radius:50px;padding:3px 12px;margin-bottom:12px;letter-spacing:.04em}
+    h1{font-family:'Pacifico',cursive;font-size:23px;color:var(--ink);line-height:1.3;margin-bottom:12px}
+    .body-text{font-size:14px;font-weight:600;color:var(--ink-soft);line-height:1.8;margin-bottom:20px}
+    .body-text em{font-style:normal;color:var(--ink);font-weight:800}
+    /* buttons */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:13px 26px;border-radius:50px;font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;color:white;border:none;cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:0 4px 18px var(--shadow)}
+    .btn:hover{transform:scale(1.05);box-shadow:0 6px 22px var(--shadow)}.btn:active{transform:scale(.97)}
+    .btn-rose  {background:linear-gradient(135deg,var(--rose),var(--rose-dk))}
+    .btn-violet{background:linear-gradient(135deg,#A99FFF,#7B6EE8)}
+    .btn-mint  {background:linear-gradient(135deg,#7DEAC0,#42C99A);color:var(--ink)}
+    .btn-peach {background:linear-gradient(135deg,#FFBB88,#FF9055)}
+    .btn-gold  {background:linear-gradient(135deg,#FFD166,#F4A946);color:var(--ink)}
+    .btn-sky   {background:linear-gradient(135deg,#93C5FD,#60A5FA)}
+    /* progress */
+    .progress{display:flex;gap:6px;margin-top:18px}
+    .pip{width:8px;height:8px;border-radius:50%;background:rgba(58,40,96,.15);transition:background .3s,transform .3s}
+    .pip.done{background:var(--violet)}.pip.now{background:var(--rose);transform:scale(1.4)}
+    /* feedback */
+    .fb{font-size:13px;font-weight:700;min-height:18px;margin:8px 0 10px}
+    .fb.ok{color:#3BB88A}.fb.err{color:#F87171}
+
+    /* ── SCENE 1 envelope ── */
+    .env-wrap{cursor:pointer;margin:10px 0 16px;filter:drop-shadow(0 6px 18px rgba(255,126,179,.35));transition:transform .3s,filter .3s}
+    .env-wrap:hover{transform:scale(1.08) rotate(-4deg);filter:drop-shadow(0 10px 24px rgba(255,126,179,.5))}
+    .tap-hint{font-size:12px;font-weight:700;color:var(--ink-soft)}
+
+    /* ── SCENE 3 memory match ── */
+    .mem-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%;margin-bottom:10px;perspective:800px}
+    .mem-card{aspect-ratio:1;border-radius:12px;cursor:pointer;position:relative;transform-style:preserve-3d;transition:transform .4s}
+    .mem-card.flipped{transform:rotateY(180deg)}
+    .mem-card .mback,.mem-card .mface{position:absolute;inset:0;border-radius:12px;display:flex;align-items:center;justify-content:center;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+    .mem-card .mback{background:linear-gradient(135deg,#E8E0FF,#FFD6EC);font-size:20px}
+    .mem-card .mface{background:white;border:2px solid var(--border);font-size:26px;transform:rotateY(180deg)}
+    .mem-card.matched .mface{background:linear-gradient(135deg,#EDFFF5,#F0EDFF);border-color:var(--mint)}
+    .mem-score{font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:10px}
+
+    /* ── SCENE 4 word scramble ── */
+    .tile-row{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;min-height:52px;background:#F7F5FF;border-radius:14px;padding:8px;margin-bottom:8px;border:2px dashed var(--border)}
+    .tile-row.ans-row{background:white;border-color:var(--violet);border-style:solid}
+    .ltile{width:36px;height:42px;background:linear-gradient(135deg,var(--violet),#7B6EE8);border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;font-size:17px;font-weight:800;color:white;cursor:pointer;box-shadow:0 3px 10px var(--shadow);transition:transform .15s;user-select:none}
+    .ltile:hover{transform:scale(1.12)}.ltile:active{transform:scale(.95)}
+    .ltile.placed{background:linear-gradient(135deg,var(--rose),var(--rose-dk))}
+    .ans-slot{width:36px;height:42px;border:2px dashed rgba(155,143,255,.35);border-radius:10px}
+    .scramble-hint{font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:10px;font-style:italic}
+
+    /* ── SCENE 5 star hunt ── */
+    .star-field{position:relative;width:100%;height:240px;background:linear-gradient(160deg,#140D35,#2D1B6E);border-radius:20px;overflow:hidden;margin-bottom:12px}
+    .star-bg{position:absolute;width:3px;height:3px;background:white;border-radius:50%;opacity:.4}
+    .hunt-star{position:absolute;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;cursor:pointer;animation:spulse 1.6s ease-in-out infinite alternate;touch-action:manipulation}
+    @keyframes spulse{from{transform:translate(-50%,-50%) scale(1)}to{transform:translate(-50%,-50%) scale(1.13)}}
+    .hunt-star.found{animation:spop .4s ease forwards;pointer-events:none}
+    @keyframes spop{0%{transform:translate(-50%,-50%) scale(1.2);opacity:1}100%{transform:translate(-50%,-50%) scale(0);opacity:0}}
+    .hunt-star.shake{animation:sshake .35s ease}
+    @keyframes sshake{0%,100%{transform:translate(-50%,-50%)}25%{transform:translate(calc(-50% - 6px),-50%)}75%{transform:translate(calc(-50% + 6px),-50%)}}
+    .star-ctr{font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:10px}
+
+    /* ── SCENE 6 jigsaw ── */
+    .jig-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 6px 24px var(--shadow);margin-bottom:12px}
+    .jig-piece{aspect-ratio:1;cursor:pointer;transition:outline .2s;background-size:300% 300%;display:flex;align-items:center;justify-content:center;font-size:26px;position:relative}
+    .jig-piece.sel{outline:3px solid var(--rose);outline-offset:-3px;z-index:2}
+    .jig-piece.flash{animation:pflash .5s ease}
+    @keyframes pflash{0%,100%{filter:brightness(1)}50%{filter:brightness(1.5)}}
+    .jig-hint{font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:10px;font-style:italic}
+
+    /* ── SCENE 7 final ── */
+    .final-card{background:linear-gradient(145deg,#FFF5FB,#F0EDFF)}
+    .big-greeting{font-family:'Pacifico',cursive;font-size:28px;background:linear-gradient(120deg,var(--rose),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.25;margin-bottom:4px}
+    .friend-name{font-family:'Pacifico',cursive;font-size:34px;background:linear-gradient(120deg,var(--violet),var(--mint));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:14px}
+    .avatar{width:110px;height:110px;border-radius:50%;object-fit:cover;border:4px solid white;box-shadow:0 6px 22px var(--shadow);margin:10px 0 14px}
+    .avatar-ph{width:110px;height:110px;border-radius:50%;background:linear-gradient(135deg,var(--rose),var(--violet));display:flex;align-items:center;justify-content:center;font-size:44px;margin:10px auto 14px;border:4px solid white;box-shadow:0 6px 22px var(--shadow)}
+    .msg-block{background:rgba(255,126,179,.08);border-left:3px solid var(--rose);border-radius:0 14px 14px 0;padding:14px 15px;font-size:13px;font-weight:600;color:var(--ink);line-height:1.85;text-align:left;margin-bottom:14px}
+    .from-sig{font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:18px}
+    /* confetti */
+    .cp{position:fixed;top:-15px;pointer-events:none;z-index:999;animation:cfall linear forwards}
+    @keyframes cfall{to{transform:translateY(115vh) rotate(620deg);opacity:0}}
+  </style>
+</head>
+<body>
+
+<div id="bubbles"></div>
+<div id="stage">
+
+  <!-- ══ S1 · ENVELOPE ══ -->
+  <div class="scene active" id="s1">
+    <div class="card">
+      <div class="step-tag">✨ a mystery has arrived</div>
+      <h1>Something appeared<br>with your name on it</h1>
+      <p class="body-text">A sparkly, sealed envelope materialized out of nowhere. Someone left it just for you. 👀</p>
+      <div class="env-wrap" onclick="advance(2)" title="Tap to open!">
+        <svg width="170" height="120" viewBox="0 0 170 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="5" y="22" width="160" height="90" rx="12" fill="#FFE8F3" stroke="#FF7EB3" stroke-width="2.5"/>
+          <path d="M5 112 L60 68 L5 30Z" fill="#F9C8DF" opacity="0.6"/>
+          <path d="M165 112 L110 68 L165 30Z" fill="#F9C8DF" opacity="0.6"/>
+          <path d="M5 112 L85 72 L165 112" stroke="#FF7EB3" stroke-width="2" fill="none"/>
+          <path d="M5 22 L85 72 L165 22" stroke="#FF7EB3" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+          <circle cx="85" cy="72" r="16" fill="#FF7EB3" filter="drop-shadow(0 2px 5px rgba(255,107,157,.4))"/>
+          <text x="85" y="78" text-anchor="middle" font-size="15" font-family="sans-serif">🎀</text>
+        </svg>
+      </div>
+      <p class="tap-hint">tap to open ✨</p>
+    </div>
+  </div>
+
+  <!-- ══ S2 · LETTER ══ -->
+  <div class="scene" id="s2">
+    <div class="card">
+      <div class="step-tag">the letter</div>
+      <h1>A note in<br>sparkly ink</h1>
+      <p class="body-text">
+        Inside is a handwritten letter:<br><br>
+        <em>"Someone has left you four challenges to solve. Only the truest of hearts can unlock what's waiting at the end. Good luck — you'll need it. 😏"</em>
+      </p>
+      <button class="btn btn-violet" onclick="advance(3)">I'm ready! 💪</button>
+    </div>
+    <div class="progress">
+      <div class="pip done"></div><div class="pip now"></div>
+      <div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div>
+    </div>
+  </div>
+
+  <!-- ══ S3 · MEMORY MATCH ══ -->
+  <div class="scene" id="s3">
+    <div class="card">
+      <div class="step-tag">challenge 1 of 4 · memory match</div>
+      <h1>Find all the pairs 🃏</h1>
+      <p class="mem-score" id="mem-score">Pairs found: 0 / 4</p>
+      <div class="mem-grid" id="mem-grid"></div>
+      <p class="fb" id="mem-fb"></p>
+      <button class="btn btn-rose" id="mem-next" style="display:none" onclick="advance(4)">Next challenge →</button>
+    </div>
+    <div class="progress">
+      <div class="pip done"></div><div class="pip done"></div><div class="pip now"></div>
+      <div class="pip"></div><div class="pip"></div><div class="pip"></div><div class="pip"></div>
+    </div>
+  </div>
+
+  <!-- ══ S4 · WORD SCRAMBLE ══ -->
+  <div class="scene" id="s4">
+    <div class="card">
+      <div class="step-tag">challenge 2 of 4 · word scramble</div>
+      <h1>Unscramble the word 🔤</h1>
+      <p class="scramble-hint">Tap letters to build the word. Clue: it's very familiar 😏</p>
+      <div class="tile-row" id="sc-bank"></div>
+      <div class="tile-row ans-row" id="sc-ans"></div>
+      <p class="fb" id="sc-fb"></p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:4px">
+        <button class="btn btn-violet" onclick="checkScramble()">Check ✓</button>
+        <button class="btn btn-mint" onclick="resetScramble()" style="font-size:13px;padding:10px 18px">Clear 🔄</button>
+      </div>
+    </div>
+    <div class="progress">
+      <div class="pip done"></div><div class="pip done"></div><div class="pip done"></div><div class="pip now"></div>
+      <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+    </div>
+  </div>
+
+  <!-- ══ S5 · STAR HUNT ══ -->
+  <div class="scene" id="s5">
+    <div class="card">
+      <div class="step-tag">challenge 3 of 4 · star hunt</div>
+      <h1>Tap the stars in order ⭐</h1>
+      <p class="star-ctr" id="star-ctr">Next: ⭐ 1</p>
+      <div class="star-field" id="star-field"></div>
+      <p class="fb" id="star-fb"></p>
+      <button class="btn btn-sky" id="star-next" style="display:none" onclick="advance(6)">Next challenge →</button>
+    </div>
+    <div class="progress">
+      <div class="pip done"></div><div class="pip done"></div><div class="pip done"></div><div class="pip done"></div><div class="pip now"></div>
+      <div class="pip"></div><div class="pip"></div>
+    </div>
+  </div>
+
+  <!-- ══ S6 · JIGSAW ══ -->
+  <div class="scene" id="s6">
+    <div class="card">
+      <div class="step-tag">challenge 4 of 4 · jigsaw</div>
+      <h1>Put it back together 🧩</h1>
+      <p class="jig-hint">Tap a piece to select, tap another to swap them</p>
+      <div class="jig-grid" id="jig-grid"></div>
+      <p class="fb" id="jig-fb"></p>
+      <button class="btn btn-peach" id="jig-next" style="display:none" onclick="advance(7)">See the surprise! 🎂</button>
+    </div>
+    <div class="progress">
+      <div class="pip done"></div><div class="pip done"></div><div class="pip done"></div><div class="pip done"></div><div class="pip done"></div><div class="pip now"></div>
+      <div class="pip"></div>
+    </div>
+  </div>
+
+  <!-- ══ S7 · FINAL REVEAL ══ -->
+  <div class="scene" id="s7">
+    <div class="card final-card">
+      <div class="step-tag">🎉 you made it!</div>
+      <div class="big-greeting">Happy Birthday,</div>
+      <div class="friend-name" id="final-name">Parekoy!</div>
+
+      <!-- 📸 PHOTO: comment out the div below, uncomment the img tag -->
+      <div class="avatar-ph">🌸</div>
+      <!-- <img src="photo.jpeg" class="avatar" alt="It's you!" /> -->
+
+      <div class="msg-block">
+        Distance has never really been a thing for us, has it? We don't need to see each other every day — or even every year — for me to know that what we have is something genuinely rare. I feel so blessed and grateful for a friendship like ours, one that just <em>picks up</em> no matter how much time has passed. 💖<br><br>
+        Kahit gaano kalayo tayo sa isa't-isa, I always feel you. In the little things, in the moments that matter, in the quiet knowing that you're there — and you always are. Just like I always will be for you.<br><br>
+        For your birthday, I'm not wishing for anything extravagant. Just this: that you stay healthy — for yourself and for your kids. That your family continues to be your greatest happiness. That your relationship stays strong and full of love. And that life gives back even a fraction of the goodness you pour into the people around you.<br><br>
+        Sana alam mo na lahat ng 'yan. 🎀
+      </div>
+      <p class="from-sig">with all the love in the world 🎀<br><strong>— Jaja</strong></p>
+      <button class="btn btn-gold" onclick="celebrate()">🎊 Let's celebrate!</button>
+    </div>
+    <div class="progress">
+      <div class="pip done"></div><div class="pip done"></div><div class="pip done"></div><div class="pip done"></div><div class="pip done"></div><div class="pip done"></div>
+      <div class="pip now"></div>
+    </div>
+  </div>
+
+</div><!-- /#stage -->
+
+<script>
+/* ════════════════════════════════════
+   CONFIG
+════════════════════════════════════ */
+const FRIEND_NAME  = "Parekoy";
+const SCRAMBLE_WORD = "PAREKOY";   // word for the scramble game
+
+document.getElementById("final-name").textContent = FRIEND_NAME + "!";
+
+/* ════════════════════════════════════
+   BACKGROUND BUBBLES
+════════════════════════════════════ */
+;(function() {
+  const colors = ["#FF7EB3","#9B8FFF","#6DDCAA","#FFAA77","#FFDDF3","#D8D2FF"];
+  const wrap = document.getElementById("bubbles");
+  for (let i = 0; i < 14; i++) {
+    const el = document.createElement("div");
+    el.className = "bubble";
+    const s = 28 + Math.random() * 90;
+    el.style.cssText = `width:${s}px;height:${s}px;left:${Math.random()*100}vw;background:${colors[i%colors.length]};animation-duration:${9+Math.random()*11}s;animation-delay:${-Math.random()*18}s;`;
+    wrap.appendChild(el);
+  }
+})();
+
+/* ════════════════════════════════════
+   SCENE NAVIGATION
+════════════════════════════════════ */
+let cur = 1;
+function advance(n) {
+  document.getElementById("s" + cur).classList.remove("active");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  setTimeout(() => {
+    document.getElementById("s" + n).classList.add("active");
+    cur = n;
+    if (n === 3) initMemory();
+    if (n === 4) initScramble();
+    if (n === 5) initStarHunt();
+    if (n === 6) initJigsaw();
+    if (n === 7) setTimeout(celebrate, 800);
+  }, 90);
+}
+
+/* ════════════════════════════════════
+   SCENE 3 · MEMORY MATCH
+   4 pairs (8 cards) in a 4×2 grid
+════════════════════════════════════ */
+const MEM_EMOJIS = ["🎂","🎀","💖","🌸"];
+let memFlipped = [], memMatched = 0, memLocked = false;
+
+function initMemory() {
+  memFlipped = []; memMatched = 0; memLocked = false;
+  const cards = [...MEM_EMOJIS, ...MEM_EMOJIS]
+    .map((e, i) => ({ emoji: e, id: i }))
+    .sort(() => Math.random() - 0.5);
+
+  const grid = document.getElementById("mem-grid");
+  grid.innerHTML = "";
+  cards.forEach(card => {
+    const el = document.createElement("div");
+    el.className = "mem-card";
+    el.dataset.emoji = card.emoji;
+    el.innerHTML = `<div class="mback">🎀</div><div class="mface">${card.emoji}</div>`;
+    el.addEventListener("click", () => flipCard(el));
+    grid.appendChild(el);
+  });
+
+  document.getElementById("mem-score").textContent = "Pairs found: 0 / 4";
+  document.getElementById("mem-fb").textContent = "";
+  document.getElementById("mem-fb").className = "fb";
+  document.getElementById("mem-next").style.display = "none";
+}
+
+function flipCard(el) {
+  if (memLocked || el.classList.contains("flipped") || el.classList.contains("matched")) return;
+  el.classList.add("flipped");
+  memFlipped.push(el);
+
+  if (memFlipped.length === 2) {
+    memLocked = true;
+    const [a, b] = memFlipped;
+    if (a.dataset.emoji === b.dataset.emoji) {
+      a.classList.add("matched"); b.classList.add("matched");
+      memMatched++;
+      document.getElementById("mem-score").textContent = `Pairs found: ${memMatched} / 4`;
+      memFlipped = []; memLocked = false;
+      const fb = document.getElementById("mem-fb");
+      fb.className = "fb ok";
+      if (memMatched === 4) {
+        fb.textContent = "🎉 All pairs found! Amazing!";
+        document.getElementById("mem-next").style.display = "inline-flex";
+      } else {
+        fb.textContent = ["Nice one! 💖","Yes! Keep going! ✨","One more pair! 🌸"][memMatched-1] || "";
+      }
+    } else {
+      const fb = document.getElementById("mem-fb");
+      fb.className = "fb err";
+      fb.textContent = "Not a match — try again! 💭";
+      setTimeout(() => {
+        a.classList.remove("flipped"); b.classList.remove("flipped");
+        memFlipped = []; memLocked = false;
+      }, 900);
+    }
+  }
+}
+
+/* ════════════════════════════════════
+   SCENE 4 · WORD SCRAMBLE
+   Unscramble the SCRAMBLE_WORD
+════════════════════════════════════ */
+let scState = [];
+let scPlacedOrder = []; // ids of placed tiles, in the order they were tapped
+
+function initScramble() {
+  const letters = SCRAMBLE_WORD.split("");
+  let shuffled;
+  do { shuffled = [...letters].sort(() => Math.random() - 0.5); }
+  while (shuffled.join("") === letters.join(""));
+
+  scState = shuffled.map((l, i) => ({ letter: l, id: i, placed: false }));
+  scPlacedOrder = [];
+  renderScramble();
+  const fb = document.getElementById("sc-fb");
+  fb.textContent = ""; fb.className = "fb";
+}
+
+function renderScramble() {
+  const bank = document.getElementById("sc-bank");
+  const ans  = document.getElementById("sc-ans");
+  bank.innerHTML = ""; ans.innerHTML = "";
+
+  scState.filter(s => !s.placed).forEach(item => {
+    const t = document.createElement("div");
+    t.className = "ltile";
+    t.textContent = item.letter;
+    t.onclick = () => { item.placed = true; scPlacedOrder.push(item.id); renderScramble(); };
+    bank.appendChild(t);
+  });
+
+  scPlacedOrder.map(id => scState.find(s => s.id === id)).forEach(item => {
+    const t = document.createElement("div");
+    t.className = "ltile placed";
+    t.textContent = item.letter;
+    t.onclick = () => { item.placed = false; scPlacedOrder = scPlacedOrder.filter(id => id !== item.id); renderScramble(); };
+    ans.appendChild(t);
+  });
+
+  const remaining = SCRAMBLE_WORD.length - scPlacedOrder.length;
+  for (let i = 0; i < remaining; i++) {
+    const slot = document.createElement("div");
+    slot.className = "ans-slot";
+    ans.appendChild(slot);
+  }
+}
+
+function checkScramble() {
+  const placed = scPlacedOrder.map(id => scState.find(s => s.id === id).letter).join("");
+  const fb = document.getElementById("sc-fb");
+  if (placed.length < SCRAMBLE_WORD.length) {
+    fb.className = "fb err";
+    fb.textContent = "Place all the letters first! 💭";
+    return;
+  }
+  if (placed === SCRAMBLE_WORD) {
+    fb.className = "fb ok";
+    fb.textContent = `🎉 "${SCRAMBLE_WORD}"! That's the one! 💖`;
+    setTimeout(() => advance(5), 1100);
+  } else {
+    fb.className = "fb err";
+    fb.textContent = "Not quite — try rearranging! 🔀";
+  }
+}
+
+function resetScramble() {
+  scState.forEach(s => s.placed = false);
+  scPlacedOrder = [];
+  renderScramble();
+  const fb = document.getElementById("sc-fb");
+  fb.textContent = ""; fb.className = "fb";
+}
+
+/* ════════════════════════════════════
+   SCENE 5 · STAR HUNT
+   5 numbered stars — tap in order 1→5
+════════════════════════════════════ */
+const STAR_COLORS = ["#FF7EB3","#9B8FFF","#6DDCAA","#FFAA77","#FFD166"];
+const TOTAL_STARS = 5;
+let nextStar = 1;
+
+function initStarHunt() {
+  nextStar = 1;
+  const field = document.getElementById("star-field");
+  field.innerHTML = "";
+
+  // Twinkling background stars
+  for (let i = 0; i < 45; i++) {
+    const p = document.createElement("div");
+    p.className = "star-bg";
+    p.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;opacity:${0.2+Math.random()*0.5}`;
+    field.appendChild(p);
+  }
+
+  // Place numbered stars without overlap
+  const positions = [];
+  for (let i = 1; i <= TOTAL_STARS; i++) {
+    let pos, tries = 0;
+    do {
+      pos = { x: 12 + Math.random() * 72, y: 12 + Math.random() * 68 };
+      tries++;
+    } while (tries < 40 && positions.some(p => Math.hypot(p.x - pos.x, p.y - pos.y) < 26));
+    positions.push(pos);
+
+    const star = document.createElement("div");
+    star.className = "hunt-star";
+    star.id = "star-" + i;
+    star.dataset.num = i;
+    star.style.cssText = `left:${pos.x}%;top:${pos.y}%;background:radial-gradient(circle,${STAR_COLORS[i-1]}CC,${STAR_COLORS[i-1]});box-shadow:0 0 18px ${STAR_COLORS[i-1]};`;
+    star.innerHTML = `⭐ ${i}`;
+    star.addEventListener("pointerdown", (e) => { e.preventDefault(); tapStar(i); });
+    field.appendChild(star);
+  }
+
+  document.getElementById("star-ctr").textContent = "Next: ⭐ 1";
+  const fb = document.getElementById("star-fb");
+  fb.textContent = ""; fb.className = "fb";
+  document.getElementById("star-next").style.display = "none";
+}
+
+function tapStar(num) {
+  const fb = document.getElementById("star-fb");
+  if (num === nextStar) {
+    const el = document.getElementById("star-" + num);
+    el.classList.add("found");
+    nextStar++;
+    if (nextStar > TOTAL_STARS) {
+      document.getElementById("star-ctr").textContent = "All stars found! 🌟";
+      fb.className = "fb ok";
+      fb.textContent = "🌟 All stars found! You're on fire!";
+      document.getElementById("star-next").style.display = "inline-flex";
+    } else {
+      document.getElementById("star-ctr").textContent = `Next: ⭐ ${nextStar}`;
+      fb.className = "fb ok";
+      fb.textContent = ["Great start! ✨","On a roll! 🌸","Halfway! 💖","One more! 💫"][nextStar - 2] || "";
+    }
+  } else {
+    const el = document.getElementById("star-" + num);
+    el.classList.remove("shake");
+    void el.offsetWidth;
+    el.classList.add("shake");
+    fb.className = "fb err";
+    fb.textContent = `Find ⭐ ${nextStar} first! 💭`;
+  }
+}
+
+/* ════════════════════════════════════
+   SCENE 6 · JIGSAW PUZZLE
+   3×3 tap-to-swap puzzle
+   Uses photo.jpg if available, otherwise colorful emoji grid
+════════════════════════════════════ */
+const JIG_N    = 3;
+const JIG_EMOJI = ["🎂","🎀","💖","🌸","✨","🎊","🦋","🌺","💫"];
+const JIG_COLORS = ["#FFD6EC","#E8E0FF","#D6F5EB","#FFE8D6","#FFF3D6","#D6EDFF","#F5D6FF","#D6FFE8","#FFD6D6"];
+let jigState = [], jigSel = null, usePhoto = false;
+
+function initJigsaw() {
+  const img = new Image();
+  img.onload  = () => { usePhoto = true;  buildJigsaw(); };
+  img.onerror = () => { usePhoto = false; buildJigsaw(); };
+  img.src = "photo.jpeg?" + Date.now();
+}
+
+function buildJigsaw() {
+  const n = JIG_N * JIG_N;
+  do { jigState = Array.from({length:n},(_,i)=>i).sort(()=>Math.random()-.5); }
+  while (jigState.every((v,i) => v === i));
+
+  jigSel = null;
+  renderJigsaw();
+  const fb = document.getElementById("jig-fb");
+  fb.textContent = ""; fb.className = "fb";
+  document.getElementById("jig-next").style.display = "none";
+}
+
+function renderJigsaw() {
+  const grid = document.getElementById("jig-grid");
+  grid.innerHTML = "";
+  jigState.forEach((pieceIdx, slot) => {
+    const el = document.createElement("div");
+    el.className = "jig-piece" + (jigSel === slot ? " sel" : "");
+    if (usePhoto) {
+      const row = Math.floor(pieceIdx / JIG_N);
+      const col = pieceIdx % JIG_N;
+      el.style.backgroundImage = "url('photo.jpeg')";
+      el.style.backgroundSize  = `${JIG_N * 100}% ${JIG_N * 100}%`;
+      el.style.backgroundPosition = `${col * 50}% ${row * 50}%`;
+    } else {
+      el.style.background = JIG_COLORS[pieceIdx];
+      el.textContent = JIG_EMOJI[pieceIdx];
+    }
+    el.addEventListener("click", () => selectPiece(slot));
+    grid.appendChild(el);
+  });
+}
+
+function selectPiece(slot) {
+  if (jigSel === null) {
+    jigSel = slot; renderJigsaw();
+  } else if (jigSel === slot) {
+    jigSel = null; renderJigsaw();
+  } else {
+    [jigState[jigSel], jigState[slot]] = [jigState[slot], jigState[jigSel]];
+    jigSel = null;
+    renderJigsaw();
+    checkJigsaw();
+  }
+}
+
+function checkJigsaw() {
+  if (jigState.every((v, i) => v === i)) {
+    document.querySelectorAll(".jig-piece").forEach(p => p.classList.add("flash"));
+    const fb = document.getElementById("jig-fb");
+    fb.className = "fb ok";
+    fb.textContent = "🧩 Puzzle complete! You did it!";
+    setTimeout(() => { document.getElementById("jig-next").style.display = "inline-flex"; }, 700);
+  }
+}
+
+/* ════════════════════════════════════
+   CONFETTI
+════════════════════════════════════ */
+function celebrate() {
+  const colors = ["#FF7EB3","#9B8FFF","#6DDCAA","#FFD166","#93C5FD","#FCA5A5","#FCD34D"];
+  for (let i = 0; i < 120; i++) {
+    const el = document.createElement("div");
+    el.className = "cp";
+    const size = 6 + Math.random() * 10;
+    el.style.cssText = `left:${Math.random()*100}vw;width:${size}px;height:${size}px;border-radius:${Math.random()>.45?"50%":"2px"};background:${colors[Math.floor(Math.random()*colors.length)]};animation-duration:${2.2+Math.random()*2}s;animation-delay:${Math.random()*1.4}s;opacity:1`;
+    document.body.appendChild(el);
+    el.addEventListener("animationend", () => el.remove());
+  }
+}
+</script>
+</body>
+</html>
